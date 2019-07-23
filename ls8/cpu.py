@@ -8,13 +8,9 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [0] * 0xff
-        self.reg = [0] * 0x08
-        self.pc = 0  # Program Computer
-        self.IR = 0  # Instruction Reg.
-        self.MAR = 0  # Mem data
-        self.MDR = 0  # Mem Reg.
-        self.FL = 0  # flags
+        self.pc = 0
+        self.ram = [0] * 256
+        self.reg = [0] * 8
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -74,8 +70,22 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        cpu = CPU()
-        print(cpu.ram)
-        print(cpu.reg)
-        cpu.ram_write(0b00010001, 0xa5)
-        print(cpu.ram_read(0xa5))
+        running = True
+        while running:
+            curr_reg = self.ram[self.pc]
+            opt_a = self.ram[self.pc + 1]
+            opt_b = self.ram[self.pc + 2]
+            if curr_reg == 0b00000001:
+                running = False
+                self.pc += 1
+
+            elif curr_reg == 0b10000010:
+                self.reg[opt_a] = opt_b
+                self.pc += 3
+
+            elif curr_reg == 0b01000111:
+                print(self.reg[opt_a])
+                self.pc += 2
+            else:
+                print(f'Unknown command {curr_reg}')
+                sys.exit(1)
