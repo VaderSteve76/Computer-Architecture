@@ -68,7 +68,6 @@ class CPU:
 
         fp = open(filename, "r")
         for line in fp:
-            # split by comment and strip empty spaces
             instruction = line.split("#")[0].strip()
             if instruction == "":
                 continue
@@ -78,15 +77,15 @@ class CPU:
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010,  # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111,  # PRN R0
+        #     0b00000000,
+        #     0b00000001,  # HLT
+        # ]
 
         for instruction in program:
             self.ram[address] = instruction
@@ -97,7 +96,6 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -123,22 +121,38 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        running = True
-        while running:
-            curr_reg = self.ram[self.pc]
-            opt_a = self.ram[self.pc + 1]
-            opt_b = self.ram[self.pc + 2]
-            if curr_reg == 0b00000001:
-                running = False
-                self.pc += 1
+        # running = True
+        # while running:
+        #     curr_reg = self.ram[self.pc]
+        #     opt_a = self.ram[self.pc + 1]
+        #     opt_b = self.ram[self.pc + 2]
+        #     if curr_reg == 0b00000001:
+        #         running = False
+        #         self.pc += 1
 
-            elif curr_reg == 0b10000010:
-                self.reg[opt_a] = opt_b
-                self.pc += 3
+        #     elif curr_reg == 0b10000010:
+        #         self.reg[opt_a] = opt_b
+        #         self.pc += 3
 
-            elif curr_reg == 0b01000111:
-                print(self.reg[opt_a])
-                self.pc += 2
+        #     elif curr_reg == 0b01000111:
+        #         print(self.reg[opt_a])
+        #         self.pc += 2
+        #     else:
+        #         print(f'Unknown command {curr_reg}')
+        #         sys.exit(1)
+        while not self.isPaused:
+            ir = self.ram[self.processCounter]
+            operand_a = self.ram_read(self.processCounter + 1)
+            operand_b = self.ram_read(self.processCounter + 2)
+
+            instruction_size = (ir >> 6) + 1
+            self.instruction_sets_processCounter = ((ir >> 4) & 0b1) == 1
+
+            if ir in self.branchTree:
+                self.branchTree[ir](operand_a, operand_b)
             else:
-                print(f'Unknown command {curr_reg}')
-                sys.exit(1)
+                raise Exception(
+                    f'Unknown Instruction {bin(ir)} at {hex(self.processCounter)}')
+
+            if not self.instruction_sets_processCounter:
+                self.processCounter += instruction_size
