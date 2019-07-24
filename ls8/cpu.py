@@ -156,3 +156,21 @@ class CPU:
 
             if not self.instruction_sets_processCounter:
                 self.processCounter += instruction_size
+
+    def op_HLT(self, operand_a, operand_b):
+        self.isPaused = True
+
+    def op_LDI(self, operand_a, operand_b):
+        self.reg[operand_a] = operand_b
+
+    def op_PRN(self, operand_a, operand_b):
+        print(self.reg[operand_a])
+
+    def op_MUL(self, operand_a, operand_b):
+        self.alu("MUL", operand_a, operand_b)
+
+    def op_PUSH(self, operand_a, operand_b):
+        self.stack_push(self.reg[operand_a])
+
+    def op_POP(self, operand_a, operand_b):
+        self.reg[operand_a] = self.stack_pop()
