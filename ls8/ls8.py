@@ -6,14 +6,20 @@ import sys
 from cpu import *
 
 
-def main(argv):
-    cpu = CPU()
+file_to_open = sys.argv[1]
 
-    cpu.load(argv[1])
-    cpu.run()
+print(f"Opening File: {file_to_open}")
 
-    return 0
+file = open(file_to_open, "r")
+instructions = []
+
+for eachLine in file:
+    if eachLine[0] != '#':
+        if eachLine != '\n':
+            instructions.append(int(eachLine[:8], 2))
 
 
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+cpu = CPU()
+
+cpu.load(instructions)
+cpu.run()

@@ -2,93 +2,72 @@
 
 import sys
 
-# op codes
-HLT = 0b00000001
-LDI = 0b10000010
-PRN = 0b01000111
-MUL = 0b10100010
-PUSH = 0b01000101
-POP = 0b01000110
-
-# reserved reg.
-IM = 5
-IS = 6
-SP = 7
-
-# flags
-FL_LT = 0b100
-FL_GT = 0b010
-FL_EQ = 0b001
-FL_TIMER = 0b00000001
-FL_KEYBOARD = 0b00000010
-
 
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [0] * 256
-        self.reg = [0] * 8
-        self.reg[SP] = 0xf4
-        self.processCounter = 0
-        self.flags = 0
-        self.isPaused = False
-        self.instruction_sets_processCounter = False
-        # self.interrupts = 1
-        # self.last_timer_int = None
+        self.ram = [bin(0)] * 256
+        self.reg = [bin(0)] * 8
+        self.pc = 0
+        self.branchtable = {}
+        self.branchtable['ldi'] = self.handle_ldi
+        self.branchtable['prn'] = self.handle_prn
+        self.branchtable['hlt'] = self.handle_hlt
+        self.branchtable['mul'] = self.handle_mul
+        self.sp = 255
+        self.branchtable['pop'] = self.handle_pop
+        self.branchtable['push'] = self.handle_push
 
-        self.branchTree = {
-            HLT: self.op_HLT,
-            LDI: self.op_LDI,
-            PRN: self.op_PRN,
-            MUL: self.op_MUL,
-            PUSH: self.op_PUSH,
-            POP: self.op_POP
-        }
+    def handle_pop(self, operand_a):
+        self.sp += 1
+        pop_num = self.ram[self.sp]
+        index = int(operand_a, 2)
+        self.reg[index] = pop_num
 
-    def ram_read(self, index):
-        return self.ram[index]
+        self.pc += 2
 
-    def ram_write(self, index, value):
-        self.ram[index] = value
+    def handle_push(self, operand_a):
+        index = int(operand_a, 2)
+        push_num = self.reg[index]
+        self.ram[self.sp] = push_num
+        self.pc += 2
+        self.sp -= 1
 
-    def stack_push(self, val):
-        self.reg[SP] -= 1
-        self.ram_write(self.reg[SP], val)
+    def handle_ldi(self, operand_a, operand_b):
+        self.reg[int(operand_a, 2)] = operand_b
+        self.pc += 3
 
-    def stack_pop(self):
-        val = self.ram_read(self.reg[SP])
-        self.reg[SP] += 1
-        return val
+    def handle_prn(self, operand_a):
+        print(int(self.reg[int(operand_a, 2)], 2))
+        self.pc += 2
 
-    def load(self):
+    def handle_hlt(self):
+        print("Halted!")
+        sys.exit(1)
+
+    def handle_mul(self, operand_a, operand_b):
+        num1 = self.reg[int(operand_a, 2)]
+        num2 = self.reg[int(operand_b, 2)]
+        mul_answer = int(num1, 2) * int(num2, 2)
+
+        self.reg[int(operand_a, 2)] = bin(mul_answer)
+        self.pc += 3
+
+    def ram_read(self, mar):
+        return self.ram[mar]
+
+    def ram_write(self, mdr, mar):
+        self.ram[mar] = mdr
+
+    def load(self, program):
         """Load a program into memory."""
+
         address = 0
 
-        fp = open(filename, "r")
-        for line in fp:
-            instruction = line.split("#")[0].strip()
-            if instruction == "":
-                continue
-            value = int(instruction, 2)
-            self.ram[address] = value
-            address += 1
-
-        # For now, we've just hardcoded a program:
-
-        # program = [
-        #     # From print8.ls8
-        #     0b10000010,  # LDI R0,8
-        #     0b00000000,
-        #     0b00001000,
-        #     0b01000111,  # PRN R0
-        #     0b00000000,
-        #     0b00000001,  # HLT
-        # ]
-
         for instruction in program:
-            self.ram[address] = instruction
+            self.ram[address] = bin(instruction)
             address += 1
 
     def alu(self, op, reg_a, reg_b):
@@ -96,6 +75,7 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
+        # elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -121,56 +101,34 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        # running = True
-        # while running:
-        #     curr_reg = self.ram[self.pc]
-        #     opt_a = self.ram[self.pc + 1]
-        #     opt_b = self.ram[self.pc + 2]
-        #     if curr_reg == 0b00000001:
-        #         running = False
-        #         self.pc += 1
+        ldi = bin(0b10000010)
+        prn = bin(0b01000111)
+        hlt = bin(0b00000001)
+        mul = bin(0b10100010)
+        push = bin(0b01000101)
+        pop = bin(0b01000110)
 
-        #     elif curr_reg == 0b10000010:
-        #         self.reg[opt_a] = opt_b
-        #         self.pc += 3
+        running = True
 
-        #     elif curr_reg == 0b01000111:
-        #         print(self.reg[opt_a])
-        #         self.pc += 2
-        #     else:
-        #         print(f'Unknown command {curr_reg}')
-        #         sys.exit(1)
-        while not self.isPaused:
-            ir = self.ram[self.processCounter]
-            operand_a = self.ram_read(self.processCounter + 1)
-            operand_b = self.ram_read(self.processCounter + 2)
+        while running:
+            ir = self.ram_read(self.pc)
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
 
-            instruction_size = (ir >> 6) + 1
-            self.instruction_sets_processCounter = ((ir >> 4) & 0b1) == 1
+            if ir == mul:
+                self.branchtable['mul'](operand_a, operand_b)
 
-            if ir in self.branchTree:
-                self.branchTree[ir](operand_a, operand_b)
-            else:
-                raise Exception(
-                    f'Unknown Instruction {bin(ir)} at {hex(self.processCounter)}')
+            if ir == ldi:
+                self.branchtable['ldi'](operand_a, operand_b)
 
-            if not self.instruction_sets_processCounter:
-                self.processCounter += instruction_size
+            if ir == prn:
+                self.branchtable['prn'](operand_a)
 
-    def op_HLT(self, operand_a, operand_b):
-        self.isPaused = True
+            if ir == push:
+                self.branchtable['push'](operand_a)
 
-    def op_LDI(self, operand_a, operand_b):
-        self.reg[operand_a] = operand_b
+            if ir == pop:
+                self.branchtable['pop'](operand_a)
 
-    def op_PRN(self, operand_a, operand_b):
-        print(self.reg[operand_a])
-
-    def op_MUL(self, operand_a, operand_b):
-        self.alu("MUL", operand_a, operand_b)
-
-    def op_PUSH(self, operand_a, operand_b):
-        self.stack_push(self.reg[operand_a])
-
-    def op_POP(self, operand_a, operand_b):
-        self.reg[operand_a] = self.stack_pop()
+            elif ir == hlt:
+                self.branchtable['hlt']()
